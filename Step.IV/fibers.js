@@ -10,7 +10,7 @@
 //   </div>
 // );
 
-function createElement(type, props, ...chiledren) {
+function createElement(type, props, ...children) {
   return {
     type,
     props: {
@@ -88,7 +88,7 @@ function workLoop(deadline) {
 requestIdleCallback(workLoop);
 
 //다음 작업 단위를 반환
-function performUnitOfWork(nextUnitOfWork) {
+function performUnitOfWork(fiber) {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
   }

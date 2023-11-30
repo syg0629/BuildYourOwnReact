@@ -5,7 +5,7 @@
 //   </div>
 // );
 
-function createElement(type, props, ...chiledren) {
+function createElement(type, props, ...children) {
   return {
     type,
     props: {
