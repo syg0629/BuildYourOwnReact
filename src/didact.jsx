@@ -77,7 +77,6 @@ function updateDom(dom, prevProps, nextProps) {
     });
 }
 
-//궁금
 // 변경된 작업을 실제 DOM에 반영하는 함수
 function commitRoot() {
   // 삭제된 요소들에 대한 작업을 커밋
@@ -192,11 +191,12 @@ let hookIndex = null;
 
 // 함수 컴포넌트에 대한 작업을 수행
 function updateFunctionComponent(fiber) {
+  // 작업 중인 fiber 설정
   wipFiber = fiber;
   hookIndex = 0;
+  // 동일한 컴포넌트에서 여러번 호출할 수 있도록 함
   wipFiber.hooks = [];
-  //궁금
-  // 여기서 fiber.type은 App 함수이고, 이를 실행하면 h1 엘리먼트를 반환
+
   const children = [fiber.type(fiber.props)];
   reconcileChildren(fiber, children);
 }
@@ -233,7 +233,90 @@ function useState(initial) {
   return [hook.state, setState];
 }
 
-// 궁금
+function useMemo(callback, dependencies) {
+  const oldHook =
+    wipFiber.alternate &&
+    wipFiber.alternate.hooks &&
+    wipFiber.alternate.hooks[hookIndex];
+
+  const hook = { deps: dependencies, value: null };
+
+  // // 의존성 배열이 변경되었는지 확인하는 함수
+  // function areDependenciesEqual(arr1, arr2) {
+  //   if (arr1 === arr2) return true;
+  //   if (arr1.length !== arr2.length) return false;
+  //   // 베열이기에 참조값을 비교하니까 하나씩 확인 필요
+  //   for (const i of arr1.keys()) {
+  //     if (arr1[i] !== arr2[i]) return false;
+  //   }
+  //   return true;
+  // }
+
+  // // 이전에 계산된 값을 재사용하는지 결정
+  // const shouldUpdate =
+  //   !oldHook || !areDependenciesEqual(oldHook.deps, dependencies);
+
+  // if (shouldUpdate) {
+  //   hook.value = callback();
+  // } else {
+  //   hook.value = oldHook.value;
+  // }
+
+  if (oldHook) {
+    if (shallowEqual(oldHook.deps, hook.deps)) {
+      hook.value = oldHook.value;
+    } else {
+      hook.value = callback();
+    }
+  }
+
+  wipFiber.hooks.push(hook);
+  hookIndex++;
+
+  return hook.value;
+}
+
+function memo(Component) {
+  // 이전 렌더링된 결과를 저장
+  let prevProps = null;
+  let prevResult = null;
+
+  return function (...props) {
+    //prevProps가 없거나 prevprops와 props가 다른 경우(props가 변경됨)
+    const shouldUpdate = !prevProps || !shallowEqual(prevProps, props);
+
+    if (shouldUpdate) {
+      prevProps = props;
+      prevResult = <Component {...props} />;
+    }
+
+    return prevResult;
+  };
+}
+
+function shallowEqual(objA, objB) {
+  if (objA === objB) return true;
+  if (
+    typeof objA !== "object" ||
+    objA === null ||
+    typeof objB !== "object" ||
+    objB === null
+  ) {
+    return false;
+  }
+
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+
+  if (keysA.length !== keysB.length) return false;
+
+  for (let key of keysA) {
+    if (!objB.hasOwnProperty(key) || objA[key] !== objB[key]) return false;
+  }
+
+  return true;
+}
+
 // 호스트 컴포넌트(예: div, span 등)에 대한 작업을 수행
 function updateHostComponent(fiber) {
   if (!fiber.dom) {
@@ -303,16 +386,36 @@ const Didact = {
   createElement,
   render,
   useState,
+  useMemo,
+  memo,
 };
 
 // JSX를 사용하기 위해 Babel과 같은 도구에서 사용되는 주석.
 // JSX 문법이 사용될 때 Didact.createElement 함수를 호출하도록 지정
 /** @jsx Didact.createElement */
 function Counter() {
-  const [state, setState] = Didact.useState(1);
+  const [stateX, setStateX] = Didact.useState(1);
+  const [stateY, setStateY] = Didact.useState(1);
 
-  return <h1 onClick={() => setState((c) => c + 1)}>Count:{state}</h1>;
+  Didact.useMemo(() => {
+    console.log(stateX);
+  }, [stateX]);
+
+  return (
+    <div>
+      <button onClick={() => setStateX((c) => c + 1)}>XCount: {stateX}</button>
+      <button onClick={() => setStateY((c) => c + 1)}>YCount: {stateY}</button>
+      <MemoizedMyComponent word="world" />
+    </div>
+  );
 }
+
+const MyComponent = ({ word }) => {
+  console.log("MyComponent 렌더링");
+  return <div>Hello, {word}!</div>;
+};
+
+const MemoizedMyComponent = Didact.memo(MyComponent);
 
 const element = <Counter />;
 const container = document.getElementById("root");
